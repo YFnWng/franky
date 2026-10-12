@@ -48,6 +48,7 @@ class CMakeBuild(build_ext):
             raise RuntimeError("CMake >= 3.11.0 is required")
 
         build_type = os.environ.get("BUILD_TYPE", "Release")
+        build_python_stubs = os.environ.get("BUILD_PYTHON_STUBS", "ON")
         build_args = ["--config", build_type]
 
         cmake_args = [
@@ -55,7 +56,7 @@ class CMakeBuild(build_ext):
             "-DPYTHON_EXECUTABLE={}".format(sys.executable),
             "-DCMAKE_BUILD_TYPE={}".format(build_type),
             "-DBUILD_EXAMPLES=OFF",
-            "-DBUILD_PYTHON_STUBS=ON",
+            "-DBUILD_PYTHON_STUBS={}".format(build_python_stubs),
             "-DBUILD_TESTS=OFF",
             "-DBUILD_SHARED_LIBS=OFF",
             "-DCMAKE_BUILD_WITH_INSTALL_RPATH=TRUE",
