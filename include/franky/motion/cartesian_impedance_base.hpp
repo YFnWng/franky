@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "franky/motion/motion.hpp"
+#include "franky/motion/nullspace_projector.hpp"
 #include "franky/motion/torque_control_utils.hpp"
 #include "franky/twist.hpp"
 #include "franky/twist_acceleration.hpp"
@@ -306,6 +307,12 @@ class CartesianImpedanceBase : public Motion<franka::Torques> {
      */
     std::vector<NullspaceTask> nullspace_tasks{};
 
+    /** Projector used for all configured secondary nullspace torques. */
+    NullspaceProjectorType nullspace_projector{NullspaceProjectorType::kKinematic};
+
+    /** Relative eigenvalue cutoff for the dynamically consistent projector. */
+    double dynamic_projector_rcond{1e-6};
+
     /** Shared torque safety limits and soft joint-limit repulsion settings. */
     TorqueSafetyParams safety{};
 
@@ -334,6 +341,9 @@ class CartesianImpedanceBase : public Motion<franka::Torques> {
           if (has_manipulability_task) throw std::invalid_argument("Only one ManipulabilityTask is supported.");
           has_manipulability_task = true;
         }
+      }
+      if (!std::isfinite(dynamic_projector_rcond) || dynamic_projector_rcond <= 0.0 || dynamic_projector_rcond >= 1.0) {
+        throw std::invalid_argument("dynamic_projector_rcond must be finite and in (0, 1)");
       }
       safety.validate();
       friction.validate();
@@ -410,6 +420,18 @@ class CartesianImpedanceBase : public Motion<franka::Torques> {
 
   [[nodiscard]] franka::Torques computeCommand(
       const RobotState &robot_state, const CartesianReference &reference, double dt);
+
+  /**
+   * Compute the task-space wrench before force constraints are applied.
+   * Derived native motions may override this to implement a task-specific
+   * translational law while retaining the common model and safety pipeline.
+   */
+  [[nodiscard]] virtual Vector6d computeCartesianWrench(
+      const RobotState &robot_state, const CartesianReference &reference, const Vector6d &error,
+      const Vector6d &measured_twist, const Vector6d &desired_twist);
+
+  [[nodiscard]] inline const Matrix6d &currentStiffness() const { return current_stiffness_; }
+  [[nodiscard]] inline const Matrix6d &currentDamping() const { return current_damping_; }
 
   [[nodiscard]] inline const Params &base_params() const { return params_; }
 

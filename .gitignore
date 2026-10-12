@@ -1,4 +1,5 @@
 /build
+/build-*/
 .vscode
 .mypy_cache
 cmake-local.sh

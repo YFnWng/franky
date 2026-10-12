@@ -11,6 +11,7 @@
 #include <utility>
 
 #include "franky/model.hpp"
+#include "franky/motion/nullspace_projector.hpp"
 #include "franky/motion/torque_control_utils.hpp"
 
 namespace franky {
@@ -270,7 +271,7 @@ franka::Torques CartesianImpedanceBase::computeCommand(
       reference.target_twist.has_value() ? reference.target_twist->vector_repr() : Vector6d::Zero();
   const Vector6d measured_twist = jacobian * robot_state.dq;
 
-  Vector6d wrench_cartesian = -current_stiffness_ * error - current_damping_ * (measured_twist - desired_twist);
+  Vector6d wrench_cartesian = computeCartesianWrench(robot_state, reference, error, measured_twist, desired_twist);
   if (reference.target_acceleration.has_value()) {
     const Eigen::Matrix<double, 7, 7> mass = model->mass(robot_state);
     const Eigen::Matrix<double, 6, 6> lambda = computeTaskSpaceInertia(jacobian, mass);
@@ -301,9 +302,15 @@ franka::Torques CartesianImpedanceBase::computeCommand(
           },
           task);
     }
-    // Orthogonal projector onto the nullspace of J, equal to the textbook I - J^T (J^T)^+ because
-    // pinv(J^T) = pinv(J)^T. Applied in factored form so the dense 7x7 projector is never formed.
-    tau_nullspace = tau_nullspace_unprojected - terms.pinv * (jacobian * tau_nullspace_unprojected);
+    if (params_.nullspace_projector == NullspaceProjectorType::kKinematic) {
+      // Preserve the historical implementation exactly in the default mode. Reuse the
+      // decomposition already needed by the manipulability calculation.
+      tau_nullspace = tau_nullspace_unprojected - terms.pinv * (jacobian * tau_nullspace_unprojected);
+    } else {
+      const Eigen::Matrix<double, 7, 7> mass = model->mass(robot_state);
+      tau_nullspace = projectNullspaceTorque(
+          jacobian, mass, tau_nullspace_unprojected, params_.nullspace_projector, params_.dynamic_projector_rcond);
+    }
   }
 
   Vector7d tau_limit = Vector7d::Zero();
@@ -327,6 +334,14 @@ franka::Torques CartesianImpedanceBase::computeCommand(
   Eigen::VectorXd::Map(&tau_d_array[0], 7) = tau_d;
 
   return franka::Torques(tau_d_array);
+}
+
+Vector6d CartesianImpedanceBase::computeCartesianWrench(
+    const RobotState &robot_state, const CartesianReference &reference, const Vector6d &error,
+    const Vector6d &measured_twist, const Vector6d &desired_twist) {
+  (void)robot_state;
+  (void)reference;
+  return -current_stiffness_ * error - current_damping_ * (measured_twist - desired_twist);
 }
 
 }  // namespace franky

@@ -12,6 +12,14 @@ void bind_enums(py::module &m) {
       .value("Relative", ReferenceType::kRelative, DOC(franky, ReferenceType, kRelative))
       .value("Absolute", ReferenceType::kAbsolute, DOC(franky, ReferenceType, kAbsolute));
 
+  py::enum_<NullspaceProjectorType>(m, "NullspaceProjectorType")
+      .value("Kinematic", NullspaceProjectorType::kKinematic)
+      .value("DynamicallyConsistent", NullspaceProjectorType::kDynamicallyConsistent);
+
+  py::enum_<CurveFixtureType>(m, "CurveFixtureType")
+      .value("ZLine", CurveFixtureType::kZLine)
+      .value("YZCircle", CurveFixtureType::kYZCircle);
+
   py::enum_<franka::ControllerMode>(m, "ControllerMode", DOC(franka, ControllerMode))
       .value("JointImpedance", franka::ControllerMode::kJointImpedance)
       .value("CartesianImpedance", franka::ControllerMode::kCartesianImpedance);

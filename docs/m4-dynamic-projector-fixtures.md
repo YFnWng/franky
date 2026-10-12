@@ -218,3 +218,22 @@ tests and the five M4 golden fixtures. Hardware is not involved in these tests.
 - Hardware adapter faults and telemetry distinguish projection failure,
   watchdog failure and robot/control failure.
 - No physical motion is authorized solely by completion of this implementation.
+
+## Implementation status — 2026-10-11
+
+The Franky library portion of this plan is implemented on this branch:
+
+- `NullspaceProjectorType` keeps the kinematic projector as the default and adds
+  the M4 mass-weighted projector with a relative eigenvalue cutoff.
+- `CartesianCurveImpedanceMotion` evaluates Z-line and YZ-circle geometry,
+  normal/tangent damping, fixed orientation and lock-free diagnostics inside
+  the native control callback.
+- Python exposes the configuration, diagnostics and pure numerical helpers.
+- The transferred Z-line and YZ-circle golden fixtures match the compiled C++
+  Python module to below `1.3e-15` maximum absolute error.
+- The C++ test suite passes against libfranka 0.21.2 and Ruckig 0.17.3; a
+  Python 3.12 binding smoke test also passes.
+
+The example is dry-run by default. Hardware commissioning still requires the
+separate runtime guards, reviewed configuration and staged procedure in
+`franka-rl/deployment/MOTION_M4_HARDWARE_DEPLOYMENT_PLAN.md`.

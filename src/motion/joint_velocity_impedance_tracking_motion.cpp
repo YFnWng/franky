@@ -8,8 +8,7 @@ namespace franky {
 JointVelocityImpedanceTrackingMotion::JointVelocityImpedanceTrackingMotion(
     const Params &params, double gains_time_constant)
     : JointImpedanceBase(Vector7d::Zero(), Vector7d::Zero(), params, gains_time_constant) {
-  if (!params.safety.lower_joint_limits.has_value() ||
-      !params.safety.upper_joint_limits.has_value()) {
+  if (!params.safety.lower_joint_limits.has_value() || !params.safety.upper_joint_limits.has_value()) {
     throw std::invalid_argument(
         "JointVelocityImpedanceTrackingMotion requires lower_joint_limits and upper_joint_limits");
   }
@@ -37,8 +36,8 @@ void JointVelocityImpedanceTrackingMotion::initImpl(
 }
 
 franka::Torques JointVelocityImpedanceTrackingMotion::nextCommandImpl(
-    const RobotState &robot_state, franka::Duration time_step, franka::Duration rel_time,
-    franka::Duration abs_time, const std::optional<franka::Torques> &previous_command) {
+    const RobotState &robot_state, franka::Duration time_step, franka::Duration rel_time, franka::Duration abs_time,
+    const std::optional<franka::Torques> &previous_command) {
   (void)rel_time;
   (void)abs_time;
   (void)previous_command;
@@ -63,3 +62,5 @@ franka::Torques JointVelocityImpedanceTrackingMotion::nextCommandImpl(
   applied_reference_handle_.setUnsafe(reference);
   return computeCommand(robot_state, reference, dt);
 }
+
+}  // namespace franky

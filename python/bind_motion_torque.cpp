@@ -192,12 +192,13 @@ void bind_motion_torque(py::module &m) {
 
   py::class_<CartesianReference>(m, "CartesianReference", DOC(franky, CartesianReference))
       .def(
-          py::init<>(
-              [](const Affine &target,
-                 std::optional<Twist>
-                     target_twist,
-                 std::optional<TwistAcceleration>
-                     target_acceleration) { return CartesianReference{target, target_twist, target_acceleration}; }),
+          py::init<>([](const Affine &target,
+                        std::optional<Twist>
+                            target_twist,
+                        std::optional<TwistAcceleration>
+                            target_acceleration) {
+            return CartesianReference{target, target_twist, target_acceleration};
+          }),
           "target"_a = Affine::Identity(),
           "target_twist"_a = std::nullopt,
           "target_acceleration"_a = std::nullopt)
@@ -360,6 +361,14 @@ void bind_motion_torque(py::module &m) {
           "nullspace_tasks",
           &CartesianImpedanceBase::Params::nullspace_tasks,
           DOC(franky, CartesianImpedanceBase, Params, nullspace_tasks))
+      .def_readwrite(
+          "nullspace_projector",
+          &CartesianImpedanceBase::Params::nullspace_projector,
+          "Projector used for configured secondary tasks.")
+      .def_readwrite(
+          "dynamic_projector_rcond",
+          &CartesianImpedanceBase::Params::dynamic_projector_rcond,
+          "Relative eigenvalue cutoff for the dynamically consistent projector.")
       .def_readwrite(
           "safety", &CartesianImpedanceBase::Params::safety, DOC(franky, CartesianImpedanceBase, Params, safety))
       .def_readwrite(
@@ -539,31 +548,48 @@ interpolates toward them with the given time constant, allowing smooth runtime s
           "Set the joint reference tracked by the controller. The reference is validated and picked up by the "
           "control loop in the next cycle.");
 
-
-  py::class_<JointVelocityImpedanceTrackingMotion, JointImpedanceBase,
-             std::shared_ptr<JointVelocityImpedanceTrackingMotion>>(
-      m, "JointVelocityImpedanceTrackingMotion")
+  py::class_<
+      JointVelocityImpedanceTrackingMotion,
+      JointImpedanceBase,
+      std::shared_ptr<JointVelocityImpedanceTrackingMotion>>(m, "JointVelocityImpedanceTrackingMotion")
       .def(
           py::init<>([](std::optional<Vector7d> stiffness,
-                        std::optional<Vector7d> damping,
-                        std::optional<Vector6d> cartesian_stiffness,
-                        std::optional<Vector6d> cartesian_damping,
-                        std::optional<Vector7d> constant_torque_offset,
-                        std::optional<Vector7d> lower_joint_limits,
-                        std::optional<Vector7d> upper_joint_limits,
+                        std::optional<Vector7d>
+                            damping,
+                        std::optional<Vector6d>
+                            cartesian_stiffness,
+                        std::optional<Vector6d>
+                            cartesian_damping,
+                        std::optional<Vector7d>
+                            constant_torque_offset,
+                        std::optional<Vector7d>
+                            lower_joint_limits,
+                        std::optional<Vector7d>
+                            upper_joint_limits,
                         bool compensate_coriolis,
                         double max_delta_tau,
                         double joint_limit_activation_distance,
                         double joint_limit_stiffness,
                         double joint_limit_damping,
                         double joint_limit_max_torque,
-                        std::optional<FrictionCompensationParams> friction,
+                        std::optional<FrictionCompensationParams>
+                            friction,
                         double gains_time_constant) {
             auto params = makeJointImpedanceParams(
-                stiffness, damping, cartesian_stiffness, cartesian_damping,
-                constant_torque_offset, lower_joint_limits, upper_joint_limits,
-                compensate_coriolis, max_delta_tau, joint_limit_activation_distance,
-                joint_limit_stiffness, joint_limit_damping, joint_limit_max_torque, friction);
+                stiffness,
+                damping,
+                cartesian_stiffness,
+                cartesian_damping,
+                constant_torque_offset,
+                lower_joint_limits,
+                upper_joint_limits,
+                compensate_coriolis,
+                max_delta_tau,
+                joint_limit_activation_distance,
+                joint_limit_stiffness,
+                joint_limit_damping,
+                joint_limit_max_torque,
+                friction);
             return std::make_shared<JointVelocityImpedanceTrackingMotion>(params, gains_time_constant);
           }),
           "stiffness"_a = std::nullopt,
@@ -591,6 +617,7 @@ interpolates toward them with the given time constant, allowing smooth runtime s
 
   py::class_<CartesianImpedanceMotion, CartesianImpedanceBase, std::shared_ptr<CartesianImpedanceMotion>>(
       m, "CartesianImpedanceMotion", DOC(franky, CartesianImpedanceMotion))
+      .def(py::init<const Affine &, const CartesianImpedanceMotion::Params &>(), "target"_a, "params"_a)
       .def(
           py::init<>([](const Affine &target,
                         std::optional<Twist>
@@ -681,6 +708,7 @@ The optional posture_task adds a secondary joint-posture objective (a PostureTas
       CartesianImpedanceBase,
       std::shared_ptr<CartesianImpedanceTrackingMotion>>(
       m, "CartesianImpedanceTrackingMotion", DOC(franky, CartesianImpedanceTrackingMotion))
+      .def(py::init<const CartesianImpedanceBase::Params &, double>(), "params"_a, "gains_time_constant"_a = 0.1)
       .def(
           py::init<>([](double translational_stiffness,
                         double rotational_stiffness,
@@ -760,6 +788,71 @@ interpolates toward them with the given time constant, allowing smooth runtime s
           "reference"_a,
           "Set the Cartesian reference tracked by the controller. The reference is validated and picked up by the "
           "control loop in the next cycle.");
+
+  py::class_<CurveFixtureParams>(m, "CurveFixtureParams")
+      .def(py::init<>())
+      .def_readwrite("type", &CurveFixtureParams::type)
+      .def_readwrite("origin", &CurveFixtureParams::origin)
+      .def_readwrite("radius", &CurveFixtureParams::radius)
+      .def_property(
+          "orientation",
+          [](const CurveFixtureParams &params) { return params.orientation.coeffs(); },
+          [](CurveFixtureParams &params, const Eigen::Vector4d &xyzw) {
+            params.orientation = Eigen::Quaterniond(xyzw);
+          },
+          "Unit quaternion as [x, y, z, w].")
+      .def_readwrite("normal_stiffness", &CurveFixtureParams::normal_stiffness)
+      .def_readwrite("normal_damping", &CurveFixtureParams::normal_damping)
+      .def_readwrite("tangent_damping", &CurveFixtureParams::tangent_damping)
+      .def_readwrite("center_epsilon", &CurveFixtureParams::center_epsilon)
+      .def_readwrite("initialization_tolerance", &CurveFixtureParams::initialization_tolerance);
+
+  py::class_<CurveFixtureGeometry>(m, "CurveFixtureGeometry")
+      .def(py::init<>())
+      .def_readwrite("projected_point", &CurveFixtureGeometry::projected_point)
+      .def_readwrite("tangent", &CurveFixtureGeometry::tangent)
+      .def_readwrite("normal_error", &CurveFixtureGeometry::normal_error)
+      .def_readwrite("distance", &CurveFixtureGeometry::distance);
+
+  py::class_<CurveFixtureDiagnostics>(m, "CurveFixtureDiagnostics")
+      .def_readonly("type", &CurveFixtureDiagnostics::type)
+      .def_readonly("measured_point", &CurveFixtureDiagnostics::measured_point)
+      .def_readonly("projected_point", &CurveFixtureDiagnostics::projected_point)
+      .def_readonly("tangent", &CurveFixtureDiagnostics::tangent)
+      .def_readonly("normal_error", &CurveFixtureDiagnostics::normal_error)
+      .def_readonly("measured_normal_velocity", &CurveFixtureDiagnostics::measured_normal_velocity)
+      .def_readonly("measured_tangent_velocity", &CurveFixtureDiagnostics::measured_tangent_velocity)
+      .def_readonly("wrench", &CurveFixtureDiagnostics::wrench)
+      .def_readonly("projection_valid", &CurveFixtureDiagnostics::projection_valid);
+
+  py::class_<CartesianCurveImpedanceMotion, CartesianImpedanceBase, std::shared_ptr<CartesianCurveImpedanceMotion>>(
+      m, "CartesianCurveImpedanceMotion")
+      .def(
+          py::init<const CurveFixtureParams &, const CartesianImpedanceBase::Params &, double>(),
+          "fixture_params"_a,
+          "controller_params"_a = CartesianImpedanceBase::Params{},
+          "gains_time_constant"_a = 0.1)
+      .def_property_readonly("fixture_params", &CartesianCurveImpedanceMotion::fixtureParams)
+      .def_property_readonly("params", &CartesianCurveImpedanceMotion::params)
+      .def("get_diagnostics", &CartesianCurveImpedanceMotion::getDiagnostics);
+
+  m.def(
+      "project_nullspace_torque",
+      &projectNullspaceTorque,
+      "jacobian"_a,
+      "mass"_a,
+      "secondary_torque"_a,
+      "type"_a,
+      "dynamic_rcond"_a = 1e-6);
+  m.def("project_curve_fixture", &projectCurveFixture, "params"_a, "measured_point"_a);
+  m.def(
+      "compute_curve_fixture_force",
+      &computeCurveFixtureForce,
+      "geometry"_a,
+      "measured_velocity"_a,
+      "normal_stiffness"_a,
+      "normal_damping"_a,
+      "tangent_damping"_a);
 
   py::class_<TorqueStopParams>(m, "TorqueStopParams", DOC(franky, TorqueStopParams))
       .def(py::init<>())
