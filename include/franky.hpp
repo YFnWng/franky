@@ -15,6 +15,7 @@
 #include "franky/motion/joint_impedance_base.hpp"
 #include "franky/motion/joint_impedance_motion.hpp"
 #include "franky/motion/joint_impedance_tracking_motion.hpp"
+#include "franky/motion/joint_velocity_impedance_tracking_motion.hpp"
 #include "franky/motion/joint_motion.hpp"
 #include "franky/motion/joint_waypoint_motion.hpp"
 #include "franky/motion/measure.hpp"

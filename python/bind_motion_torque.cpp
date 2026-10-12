@@ -539,6 +539,56 @@ interpolates toward them with the given time constant, allowing smooth runtime s
           "Set the joint reference tracked by the controller. The reference is validated and picked up by the "
           "control loop in the next cycle.");
 
+
+  py::class_<JointVelocityImpedanceTrackingMotion, JointImpedanceBase,
+             std::shared_ptr<JointVelocityImpedanceTrackingMotion>>(
+      m, "JointVelocityImpedanceTrackingMotion")
+      .def(
+          py::init<>([](std::optional<Vector7d> stiffness,
+                        std::optional<Vector7d> damping,
+                        std::optional<Vector6d> cartesian_stiffness,
+                        std::optional<Vector6d> cartesian_damping,
+                        std::optional<Vector7d> constant_torque_offset,
+                        std::optional<Vector7d> lower_joint_limits,
+                        std::optional<Vector7d> upper_joint_limits,
+                        bool compensate_coriolis,
+                        double max_delta_tau,
+                        double joint_limit_activation_distance,
+                        double joint_limit_stiffness,
+                        double joint_limit_damping,
+                        double joint_limit_max_torque,
+                        std::optional<FrictionCompensationParams> friction,
+                        double gains_time_constant) {
+            auto params = makeJointImpedanceParams(
+                stiffness, damping, cartesian_stiffness, cartesian_damping,
+                constant_torque_offset, lower_joint_limits, upper_joint_limits,
+                compensate_coriolis, max_delta_tau, joint_limit_activation_distance,
+                joint_limit_stiffness, joint_limit_damping, joint_limit_max_torque, friction);
+            return std::make_shared<JointVelocityImpedanceTrackingMotion>(params, gains_time_constant);
+          }),
+          "stiffness"_a = std::nullopt,
+          "damping"_a = std::nullopt,
+          "cartesian_stiffness"_a = std::nullopt,
+          "cartesian_damping"_a = std::nullopt,
+          "constant_torque_offset"_a = std::nullopt,
+          "lower_joint_limits"_a = std::nullopt,
+          "upper_joint_limits"_a = std::nullopt,
+          "compensate_coriolis"_a = true,
+          "max_delta_tau"_a = 1.0,
+          "joint_limit_activation_distance"_a = 0.1,
+          "joint_limit_stiffness"_a = 4.0,
+          "joint_limit_damping"_a = 1.0,
+          "joint_limit_max_torque"_a = 5.0,
+          "friction"_a = std::nullopt,
+          "gains_time_constant"_a = 0.1)
+      .def_property_readonly("target", &JointVelocityImpedanceTrackingMotion::target)
+      .def_property_readonly("target_velocity", &JointVelocityImpedanceTrackingMotion::target_velocity)
+      .def_property_readonly("params", [](const JointVelocityImpedanceTrackingMotion &m) { return m.params(); })
+      .def("set_velocity", &JointVelocityImpedanceTrackingMotion::setVelocity, "velocity"_a)
+      .def("get_velocity", &JointVelocityImpedanceTrackingMotion::getVelocity)
+      .def("set_initial_reference", &JointVelocityImpedanceTrackingMotion::setInitialReference, "reference"_a)
+      .def("get_applied_reference", &JointVelocityImpedanceTrackingMotion::getAppliedReference);
+
   py::class_<CartesianImpedanceMotion, CartesianImpedanceBase, std::shared_ptr<CartesianImpedanceMotion>>(
       m, "CartesianImpedanceMotion", DOC(franky, CartesianImpedanceMotion))
       .def(
