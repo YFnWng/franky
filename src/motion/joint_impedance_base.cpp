@@ -87,7 +87,7 @@ franka::Torques JointImpedanceBase::computeCommand(
         jacobian.transpose() * (shaping.stiffness * (jacobian * q_error) + shaping.damping * (jacobian * dq_error)) +
         torque_feedforward;
   } else {
-    tau_d = current_stiffness_.asDiagonal() * q_error + current_damping_.asDiagonal() * dq_error + torque_feedforward;
+    tau_d = computeJointPdTorque(current_stiffness_, current_damping_, q_error, dq_error) + torque_feedforward;
   }
 
   tau_d += computeFrictionCompensation(robot_state.dq, params_.friction);

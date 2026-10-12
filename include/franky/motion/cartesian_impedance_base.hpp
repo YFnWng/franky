@@ -435,6 +435,11 @@ class CartesianImpedanceBase : public Motion<franka::Torques> {
 
   [[nodiscard]] inline const Params &base_params() const { return params_; }
 
+  // Opt-in runtime hooks; historical motions keep their original behavior.
+  virtual Vector7d postureTarget(const Vector7d &target) { return target; }
+  virtual void observeTorque(const Vector7d &raw, const Vector7d &task, const Vector7d &posture,
+                             const Vector7d &limit, const Vector7d &coriolis) {}
+
   Affine target_;
 
  private:

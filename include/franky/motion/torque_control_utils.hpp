@@ -10,6 +10,12 @@
 #include "franky/types.hpp"
 
 namespace franky {
+// Shared explicit joint PD law; model compensation and slew are applied by callers.
+inline Vector7d computeJointPdTorque(const Vector7d &stiffness, const Vector7d &damping,
+                                    const Vector7d &position_error, const Vector7d &velocity_error) {
+  return stiffness.cwiseProduct(position_error) + damping.cwiseProduct(velocity_error);
+}
+
 
 inline double interpolateGain(double current, double target, double alpha, double settle_tolerance = 1e-6) {
   const double next = current + alpha * (target - current);

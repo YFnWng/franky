@@ -293,10 +293,11 @@ franka::Torques CartesianImpedanceBase::computeCommand(
       tau_nullspace_unprojected += std::visit(
           [&](const auto &concrete_task) -> Vector7d {
             using Task = std::decay_t<decltype(concrete_task)>;
-            const auto effective = applyGains(concrete_task, current_nullspace_gains_);
+            auto effective = applyGains(concrete_task, current_nullspace_gains_);
             if constexpr (std::is_same_v<Task, ManipulabilityTask>) {
               return computeTaskTorque(effective, robot_state, jacobian, terms);
             } else {
+              effective.target = postureTarget(effective.target);
               return computeTaskTorque(effective, robot_state);
             }
           },
@@ -328,6 +329,7 @@ franka::Torques CartesianImpedanceBase::computeCommand(
 
   Vector7d tau_d = tau_task + tau_nullspace + tau_limit + coriolis;
   tau_d += computeFrictionCompensation(robot_state.dq, params_.friction);
+  observeTorque(tau_d, tau_task, tau_nullspace, tau_limit, coriolis);
   tau_d = franky::saturateTorqueRate(tau_d, robot_state.tau_J_d, params_.safety.max_delta_tau);
 
   std::array<double, 7> tau_d_array{};

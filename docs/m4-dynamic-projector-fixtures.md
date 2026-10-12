@@ -237,3 +237,121 @@ The Franky library portion of this plan is implemented on this branch:
 The example is dry-run by default. Hardware commissioning still requires the
 separate runtime guards, reviewed configuration and staged procedure in
 `franka-rl/deployment/MOTION_M4_HARDWARE_DEPLOYMENT_PLAN.md`.
+
+
+## Hardware runtime and dependency preservation — 2026-10-12
+
+The local working tree adds native `M4RuntimeMotion` watchdog/guard/stop dispatch and a
+bounded 1 kHz telemetry ring, plus a hardware adapter and single-task runner
+`deployment/franky_runtime/run_m4_hardware.py`. It supports pose/twist tracking,
+measured-pose hold, native quintic posture references, and line/circle fixtures.
+The first local candidate is `config/m4.hold.pending.yaml`: 10-second hold with
+zero posture gains. It is pending local review, not automatically authorized.
+
+The new wheel `2.0.1.dev63+gm4baseline.libfranka.0.21.2` bundles byte-identical
+copies of all 21 native dependencies from the tested RL velocity runtime,
+including libfranka and Ruckig. The earlier dev62 dependency rebuild is
+superseded for commissioning. Installed environment:
+`~/yifan/venvs/franky-m4-baseline-server10`. Artifact and dependency/source hash
+receipt: `~/yifan/deployment_bundles/2026-10-12/franky-m4-baseline/`.
+
+Native tests (13 cases/41 assertions), installed binding/adapter tests (9),
+portable five-fixture replay and native curve helper parity passed offline.
+There has been no FCI connection or hardware motion. Full compiled tracking/
+posture torque replay and physical timing/stop commissioning remain unvalidated;
+the simulation torque-processing correction requested above also remains open.
+Detailed commands, telemetry semantics and guard provenance are in
+`deployment/franky_runtime/M4_HARDWARE_PREP.md`.
+
+
+## M4 stop v2 implementation (2026-10-12)
+
+The user requested correction of the Z-line stopping failure. M4-only native
+stop now captures measured encoder/FK pose and current joints when stopping
+begins. It ignores subsequent publisher references and replaces the fixture's
+free tangent with full-six-axis Cartesian hold using existing controller gains
+(K800 translation/K40 rotation for this Z-line config), zero desired twist,
+inherited Coriolis/joint-limit processing and additional configured joint damping.
+A smoothstep ramp over the existing 0.2 seconds blends from actual prior
+filtered tau_J_d into hold torque, then applies command bounds and the existing
+1 Nm/tick slew; libfranka still filters at 100 Hz. No gravity added by client.
+Regular guidance gains and immutable simulation bundle remain unchanged.
+
+Normal MotionFinished requires all joints below 0.02 rad/s continuously for
+100 ms after the ramp. Two-second deadline without sustained rest is stop
+fault18 and a native control exception, not MotionFinished while moving.
+Stop position/orientation containment uses 3 cm / 0.2 rad about captured stop
+pose; joint and workspace bounds continue to apply. Model/nonfinite failure,
+collision/robot errors or containment failure abort control explicitly.
+A native abort may result in a stiff robot; it is not a compliant guidance
+mode, and firmware behavior after FCI exits is not controlled by this code.
+Pose hold under continued external force is not an assured collision-free stop.
+
+Separate stop_fault preserves evidence even when original fault9 remains
+latched. Python catches join exceptions, drains final telemetry and reports
+stop_evidence/stop_fault without labeling an abort a smooth stop. Stop logs
+include extra joint damping and identify raw torque as pre-transition hold
+output. Standalone Franky TorqueStopMotion and existing velocity controller
+are unchanged; only M4RuntimeMotion has this stop policy.
+
+New isolated runtime: `~/yifan/venvs/franky-m4-stop-server10`, Franky
+`2.0.1.dev64+gm4stop.libfranka.0.21.2`. All 21 native dependency files must
+match baseline byte-for-byte; tested baseline environment is retained.
+Z-line approved config now requires stop_behavior_version2 and the new
+Franky version. `config/m4.stop-check.approved.yaml` is a five-second
+measured-pose hold with the same Cartesian gains, no trajectory/homing or
+hand guidance, for first stationary commissioning of the new stop.
+Old circle/posture configs remain tied to their original runtime.
+
+Native deterministic tests passed 18 cases/62 assertions, including former
+fixture tangent restoring force, orientation restoring force, opposing braking
+force, bounds/slew, low-speed dwell with reset, moving deadline and containment.
+These tests do not prove physical braking or human-contact performance.
+No robot access or motion performed during this fix. Verify stationary stop
+first, then limited gentle Z guidance with release of hand force when stopping.
+
+
+## Comparison implementation delivered — 2026-10-12
+
+See `deployment/franky_runtime/M4_COMPARISONS.md` for commands and current
+contracts. Native optional DLS route added to M4RuntimeMotion, sharing the tested
+watchdog/guards/ring log and captured-pose stop-v2. Shared joint PD algebra is
+reused with JointImpedanceBase. Separate configured Cartesian stop gains ensure
+active gain sweeps do not silently vary braking gains. No libfranka/Ruckig/
+firmware/dependency changes: isolated franky-m4-comparison-server10, local
+Franky2.0.1.dev65+gm4compare.libfranka.0.21.2, all21 bundled dependency hashes
+identical to retained stop-server10. Wheel/receipts under deployment_bundles/
+2026-10-12/franky-m4-comparison.
+
+User requested each session automatically repeat3 times: runner now defaults3
+(or experiment.repeats), one start,5s interval, fresh live checks, individual
+trial folders. Fault, failed stop, logging loss, operator stop or repeat-start
+drift aborts continuation; no auto recovery/homing. --repeats1 for commissioning.
+Posture targets frozen within the session; paired sessions still require target
+and start matching from recorded plans. Existing executable configs are not
+silently replaced by new comparison candidates.
+
+22 candidate profiles generated, plus local single-profile executable-copy
+selector. Phase events tied to applied reference sequence, joint/DLS telemetry,
+phase/contour/posture/torque/settling metrics and repeat-aware report aggregator
+implemented. Existing historical runs exercised into comparison-baseline-report
+with indexed JSON/CSV, Markdown and PNG/PDF figures; exploratory evidence remains
+labelled as such. Tests42 Python and22 native cases/75 assertions passed.
+No FCI access or hardware motion performed. DLS composed route needs first
+hardware hold, then one circle trial before three-trial comparisons. Portable
+DLS law at source/franka_motion/franka_motion/dls_tracking.py is available to the
+simulation workstation; native/portable numerical parity tested.
+
+## Comparison startup fix and final validation — 2026-10-12
+
+The deployed comparison build is
+`2.0.1.dev66+gm4comparefix.libfranka.0.21.2`. DLS accepts libfranka's
+zero-duration first callback and performs zero integration on that tick;
+subsequent callback periods must be positive and within the configured bound.
+This fixes the initial controller_projection fault without changing the
+controller law or bundled dependencies.
+
+Before committing the runtime changes, `cmake --build build-m4-021 --target
+test-m4-controller -j2` succeeded and `./build-m4-021/test-m4-controller`
+passed all 23 test cases / 82 assertions. These checks are offline and do not
+connect to the robot.

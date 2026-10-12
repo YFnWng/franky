@@ -38,3 +38,5 @@
 #include "franky/twist_acceleration.hpp"
 #include "franky/types.hpp"
 #include "franky/util.hpp"
+
+#include "franky/motion/m4_runtime_motion.hpp"
