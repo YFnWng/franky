@@ -105,6 +105,7 @@ franka::Torques JointImpedanceBase::computeCommand(
   }
 
   if (params_.compensate_coriolis) tau_d += model->coriolis(robot_state);
+  observeRawJointTorque(tau_d);
   tau_d = franky::saturateTorqueRate(tau_d, robot_state.tau_J_d, params_.safety.max_delta_tau);
 
   std::array<double, 7> tau_d_array{};

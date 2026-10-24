@@ -40,3 +40,5 @@
 #include "franky/util.hpp"
 
 #include "franky/motion/m4_runtime_motion.hpp"
+
+#include "franky/motion/droid_joint_impedance_motion.hpp"

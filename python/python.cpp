@@ -14,6 +14,7 @@ void bind_motion_cartesian_vel(py::module &);
 void bind_motion_joint_pos(py::module &);
 void bind_motion_joint_vel(py::module &);
 void bind_motion_torque(py::module &);
+void bind_droid(py::module &);
 void bind_reactions(py::module &);
 void bind_robot(py::module &);
 void bind_robot_state(py::module &);
@@ -34,5 +35,6 @@ PYBIND11_MODULE(_franky, m) {
   bind_motion_joint_pos(m);
   bind_motion_joint_vel(m);
   bind_motion_torque(m);
+  bind_droid(m);
   bind_robot(m);
 }

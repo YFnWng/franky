@@ -185,6 +185,8 @@ class JointImpedanceBase : public Motion<franka::Torques> {
       const Vector7d &target, const Vector7d &target_velocity, const JointImpedanceParams &params,
       double gains_time_constant = 0.1);
 
+  virtual void observeRawJointTorque(const Vector7d &) {}
+
   [[nodiscard]] franka::Torques computeCommand(
       const RobotState &robot_state, const JointReference &reference, double dt);
 
